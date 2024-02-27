@@ -61,3 +61,102 @@ dim_k = key.size(-1)
 scores = torch.bmm(query, key.transpose(1,2)) / sqrt(dim_k) 
 scores.size()
 ```
+
+chapter05
+
+多了一个pd.DataFrame(iterations)
+
+```python
+import pandas as pd
+input_txt = "Transformers are the" 
+input_ids = tokenizer(input_txt, return_tensors="pt")["input_ids"].to(device) 
+iterations = [] 
+n_steps = 8 
+choices_per_step = 5
+with torch.no_grad(): 
+	for _ in range(n_steps): 
+		iteration = dict() 
+		iteration["Input"] = tokenizer.decode(input_ids[0]) 
+		output = model(input_ids=input_ids) 
+		# Select logits of the first batch and the last token and apply softmax 			
+		next_token_logits = output.logits[0, -1, :]
+		next_token_probs = torch.softmax(next_token_logits, dim=-1) 
+		sorted_ids = torch.argsort(next_token_probs, dim=-1, descending=True) 
+		# Store tokens with highest probabilities 
+		for choice_idx in range(choices_per_step): 
+			token_id = sorted_ids[choice_idx] 
+			token_prob = next_token_probs[token_id].cpu().numpy() 
+			token_choice = ( f"{tokenizer.decode(token_id)} ({100 * token_prob:.2f}%)" ) 
+			iteration[f"Choice {choice_idx+1}"] = token_choice 
+			# Append predicted next token to input 
+			input_ids = torch.cat([input_ids, sorted_ids[None, 0, None]], dim=-1) 
+			iterations.append(iteration) #pd.DataFrame(iterations)
+pd.DataFrame(iterations)
+
+
+```
+
+文本重复
+
+我们还可以看到贪婪搜索解码的一个主要缺点：往往会产生重复的输出序列，这在新闻报道中当然不可取。我们还可以看到贪婪搜索解码的一个主要缺点：它倾向于产生重复的输出序列，这在一篇新闻文章中当然是不可取的。
+
+
+Chapter 06
+Top-K 抽样那里，文本重复
+
+然后是急剧下降，只有少数几个概率在10-2和10-1之间的标记出现。看这张图，我们可以看到，选择概率最高的标记的 挑选概率最高的标记（10-1处的孤立条）的概率是1/10
+
+文本重复2
+
+k的值是手动选择的，对序列中的每个选择都是一样的，与实际的输出分布无关。序列中的每个选择都是一样的，与实际的输出分布无关。
+
+chaper06 code
+
+```python
+from datasets import load_dataset 
+dataset = load_dataset("cnn_dailymail", version="3.0.0")
+print(f"Features: {dataset['train'].column_names}") 
+
+```
+
+to
+
+```python
+from datasets import load_dataset
+
+try:
+  dataset = load_dataset("cnn_dailymail","3.0.0")
+  print(f"Features: {dataset['train'].column_names}")
+except Exception as e:
+  print(f"An error occurred: {e}")
+
+
+```
+
+
+```python
+est_sampled = dataset["test"].shuffle(seed=42).select(range(1000)) 
+score = evaluate_summaries_baseline(test_sampled, rouge_metric) 
+rouge_dict = dict((rn, score[rn].mid.fmeasure) for rn in rouge_names) pd.DataFrame.from_dict(rouge_dict, orient="index", columns=["baseline"]).T
+
+
+```
+
+少了一个t > 'est_sampled = dataset["test"].shuffle(seed=42).select(range(1000)) '
+
+
+chapter 08
+翻译错误
+
+<这里我们还指定了我们的模型应该期望的类的数量。然后我们可以把这个配置提供给AutoModelForSequenceClassification类的from_pretrained()函数，如下所示：>应该是标签数量
+
+
+<第八章的优化部分两个动态裁剪完全看不懂>
+
+
+Chapter09 要掉一个API
+
+Chapter10 colab用不了那个数据集一直在爆disk，下不下去那个数据集算了
+
+chapter11 鉴鉴于像GPT-3这样的大型语言模型估计要花费460万美元来训练。 打错了
+而且这个是只有文字介绍
